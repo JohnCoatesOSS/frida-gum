@@ -8,6 +8,7 @@
 
 #include "gumdukmacros.h"
 #include "gumdukscript-priv.h"
+#include "guminterceptor-priv.h"
 
 #define GUM_DUK_INVOCATION_LISTENER_CAST(obj) \
     ((GumDukInvocationListener *) (obj))
@@ -393,6 +394,64 @@ GUMJS_DEFINE_CONSTRUCTOR (gumjs_interceptor_construct)
   return 0;
 }
 
+static void
+gum_duk_populate_interceptor_attach_return_value(const GumInterceptor * self,
+                                                 duk_context * ctx,
+                                                 const GumDukArgs * args,
+                                                 gpointer target,
+                                                 GumInvocationListener * listener
+                                                 ) {
+    duk_idx_t obj_idx;
+    obj_idx = duk_push_object(ctx);
+    
+    duk_idx_t arr_idx = duk_push_array(ctx);
+    
+    GumFunctionContext * function_ctx;
+    
+    GHashTableIter iter;
+    GHashTable * table = interceptor_function_by_address(self);
+    g_hash_table_iter_init (&iter, table);
+    int index = 0;
+    while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &function_ctx))
+    {
+        if (!gum_function_context_has_listener (function_ctx, listener))
+        {
+            continue;
+        }
+        duk_idx_t listener = duk_push_object(ctx);
+        
+        if (function_ctx->on_enter_trampoline != NULL) {
+            _gum_duk_push_native_pointer(ctx, function_ctx->on_enter_trampoline, args->core);
+            duk_put_prop_string(ctx, listener, "on_enter_trampoline");
+        }
+        
+        if (function_ctx->on_invoke_trampoline != NULL) {
+            _gum_duk_push_native_pointer(ctx, function_ctx->on_enter_trampoline, args->core);
+            duk_put_prop_string(ctx, listener, "on_invoke_trampoline");
+        }
+        
+        if (function_ctx->has_on_leave_listener) {
+            _gum_duk_push_native_pointer(ctx, function_ctx->on_leave_trampoline, args->core);
+            duk_put_prop_string(ctx, listener, "on_leave_trampoline");
+        }
+        
+        if (function_ctx->replacement_function != NULL) {
+            _gum_duk_push_native_pointer(ctx, function_ctx->replacement_function, args->core);
+            duk_put_prop_string(ctx, listener, "replacement_function");
+        }
+        
+        duk_put_prop_index(ctx, arr_idx, index);
+        index += 1;
+        asl_log(NULL, NULL, ASL_LEVEL_WARNING,
+                "GHashTable index %d", index);
+    }
+    
+    duk_put_prop_string(ctx, obj_idx, "listeners");
+    
+    _gum_duk_push_native_pointer(ctx, target, args->core);
+    duk_put_prop_string(ctx, obj_idx, "target");
+}
+
 GUMJS_DEFINE_FUNCTION (gumjs_interceptor_attach)
 {
   GumDukInterceptor * self;
@@ -448,6 +507,9 @@ GUMJS_DEFINE_FUNCTION (gumjs_interceptor_attach)
   }
 
   g_hash_table_add (self->invocation_listeners, listener);
+    
+    gum_duk_populate_interceptor_attach_return_value(self->interceptor, ctx, args,
+                                                     target, GUM_INVOCATION_LISTENER (listener));
 
   return 1;
 

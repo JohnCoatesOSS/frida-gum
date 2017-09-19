@@ -82,4 +82,9 @@ gpointer _gum_interceptor_backend_resolve_redirect (
 gboolean _gum_interceptor_backend_can_intercept (GumInterceptorBackend * self,
     gpointer function_address);
 
+GHashTable *interceptor_function_by_address(const GumInterceptor * self);
+
+gboolean gum_function_context_has_listener (
+                                            GumFunctionContext * function_ctx, GumInvocationListener * listener);
+
 #endif

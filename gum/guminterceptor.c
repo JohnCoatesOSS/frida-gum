@@ -163,8 +163,7 @@ static void gum_function_context_add_listener (
 static void gum_function_context_remove_listener (
     GumFunctionContext * function_ctx, GumInvocationListener * listener);
 static void listener_entry_free (ListenerEntry * entry);
-static gboolean gum_function_context_has_listener (
-    GumFunctionContext * function_ctx, GumInvocationListener * listener);
+
 static ListenerEntry ** gum_function_context_find_listener (
     GumFunctionContext * function_ctx, GumInvocationListener * listener);
 static ListenerEntry ** gum_function_context_find_taken_listener_slot (
@@ -1091,7 +1090,7 @@ gum_function_context_remove_listener (GumFunctionContext * function_ctx,
   function_ctx->has_on_leave_listener = has_on_leave_listener;
 }
 
-static gboolean
+gboolean
 gum_function_context_has_listener (GumFunctionContext * function_ctx,
                                    GumInvocationListener * listener)
 {
@@ -1719,4 +1718,8 @@ gum_page_address_compare (gconstpointer a,
                           gconstpointer b)
 {
   return GPOINTER_TO_SIZE (a) - GPOINTER_TO_SIZE (b);
+}
+
+GHashTable *interceptor_function_by_address(const GumInterceptor * self) {
+    return self->priv->function_by_address;
 }
