@@ -107,9 +107,11 @@ test_arm64_stalker_fixture_dup_code (TestArm64StalkerFixture * fixture,
 
   if (fixture->code != NULL)
     gum_free_pages (fixture->code);
-  fixture->code = gum_alloc_n_pages_near (
-      (tpl_size / gum_query_page_size ()) + 1, GUM_PAGE_RWX, &spec);
+  guint pages = (tpl_size / gum_query_page_size ()) + 1;
+  fixture->code = gum_alloc_n_pages_near (pages, GUM_PAGE_RW, &spec);
   memcpy (fixture->code, tpl_code, tpl_size);
+  gsize code_size = gum_query_page_size() * pages;
+  gum_mprotect (fixture->code, code_size, GUM_PAGE_RX);
 
   return fixture->code;
 }
@@ -131,7 +133,7 @@ test_arm64_stalker_fixture_follow_and_invoke (TestArm64StalkerFixture * fixture,
 
   spec.near_address = gum_stalker_follow_me;
   spec.max_distance = G_MAXINT32 / 2;
-  code = gum_alloc_n_pages_near (1, GUM_PAGE_RWX, &spec);
+  code = gum_alloc_n_pages_near (1, GUM_PAGE_RW, &spec);
 
   gum_arm64_writer_init (&cw, code);
 
@@ -160,6 +162,7 @@ test_arm64_stalker_fixture_follow_and_invoke (TestArm64StalkerFixture * fixture,
   gum_arm64_writer_put_ret (&cw);
 
   gum_arm64_writer_flush (&cw);
+  gum_mprotect (code, gum_query_page_size (), GUM_PAGE_RX);
   gum_clear_cache (cw.base, gum_arm64_writer_offset (&cw));
   gum_arm64_writer_clear (&cw);
 

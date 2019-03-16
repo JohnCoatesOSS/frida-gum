@@ -155,7 +155,7 @@ TESTCASE (call_depth)
   StalkerTestFunc func;
   gint r;
 
-  code = gum_alloc_n_pages (1, GUM_PAGE_RWX);
+  code = gum_alloc_n_pages (1, GUM_PAGE_RW);
   gum_arm64_writer_init (&cw, code);
 
   gum_arm64_writer_put_push_all_x_registers (&cw);
@@ -193,6 +193,7 @@ TESTCASE (call_depth)
   gum_arm64_writer_put_ret (&cw);
 
   gum_arm64_writer_flush (&cw);
+  gum_mprotect (code, gum_query_page_size (), GUM_PAGE_RX);
   gum_clear_cache (cw.base, gum_arm64_writer_offset (&cw));
   gum_arm64_writer_clear (&cw);
 
@@ -424,7 +425,7 @@ TESTCASE (exclude_blr)
 
   fixture->sink->mask = GUM_EXEC;
 
-  code = gum_alloc_n_pages (1, GUM_PAGE_RWX);
+  code = gum_alloc_n_pages (1, GUM_PAGE_RW);
   gum_arm64_writer_init (&cw, code);
 
   gum_arm64_writer_put_push_all_x_registers (&cw);
@@ -457,6 +458,7 @@ TESTCASE (exclude_blr)
   gum_arm64_writer_put_ret (&cw);
 
   gum_arm64_writer_flush (&cw);
+  gum_mprotect (code, gum_query_page_size (), GUM_PAGE_RX);
   gum_clear_cache (cw.base, gum_arm64_writer_offset (&cw));
   gum_arm64_writer_clear (&cw);
 
@@ -490,7 +492,7 @@ TESTCASE (exclude_bl_with_unfollow)
 
   fixture->sink->mask = GUM_EXEC;
 
-  code = gum_alloc_n_pages (1, GUM_PAGE_RWX);
+  code = gum_alloc_n_pages (1, GUM_PAGE_RW);
   gum_arm64_writer_init (&cw, code);
 
   gum_arm64_writer_put_push_all_x_registers (&cw);
@@ -523,6 +525,7 @@ TESTCASE (exclude_bl_with_unfollow)
   gum_arm64_writer_put_ret (&cw);
 
   gum_arm64_writer_flush (&cw);
+  gum_mprotect (code, gum_query_page_size (), GUM_PAGE_RX);
   gum_clear_cache (cw.base, gum_arm64_writer_offset (&cw));
   gum_arm64_writer_clear (&cw);
 
@@ -552,7 +555,7 @@ TESTCASE (exclude_blr_with_unfollow)
 
   fixture->sink->mask = GUM_EXEC;
 
-  code = gum_alloc_n_pages (1, GUM_PAGE_RWX);
+  code = gum_alloc_n_pages (1, GUM_PAGE_RW);
   gum_arm64_writer_init (&cw, code);
 
   gum_arm64_writer_put_push_all_x_registers (&cw);
@@ -587,6 +590,7 @@ TESTCASE (exclude_blr_with_unfollow)
   gum_arm64_writer_put_ret (&cw);
 
   gum_arm64_writer_flush (&cw);
+  gum_mprotect (code, gum_query_page_size (), GUM_PAGE_RX);
   gum_clear_cache (cw.base, gum_arm64_writer_offset (&cw));
   gum_arm64_writer_clear (&cw);
 
@@ -613,7 +617,7 @@ TESTCASE (unconditional_branch)
   const gchar * my_ken_lbl = "my_ken";
   StalkerTestFunc func;
 
-  code = gum_alloc_n_pages (1, GUM_PAGE_RWX);
+  code = gum_alloc_n_pages (1, GUM_PAGE_RW);
   gum_arm64_writer_init (&cw, code);
 
   gum_arm64_writer_put_push_all_x_registers (&cw);
@@ -644,6 +648,7 @@ TESTCASE (unconditional_branch)
   gum_arm64_writer_put_b_imm (&cw, address);
 
   gum_arm64_writer_flush (&cw);
+  gum_mprotect (code, gum_query_page_size (), GUM_PAGE_RX);
   gum_clear_cache (cw.base, gum_arm64_writer_offset (&cw));
   gum_arm64_writer_clear (&cw);
 
@@ -664,7 +669,7 @@ TESTCASE (unconditional_branch_reg)
   StalkerTestFunc func;
   arm64_reg reg = ARM64_REG_X13;
 
-  code = gum_alloc_n_pages (1, GUM_PAGE_RWX);
+  code = gum_alloc_n_pages (1, GUM_PAGE_RW);
   gum_arm64_writer_init (&cw, code);
 
   gum_arm64_writer_put_push_all_x_registers (&cw);
@@ -700,6 +705,7 @@ TESTCASE (unconditional_branch_reg)
   gum_arm64_writer_put_br_reg (&cw, reg);
 
   gum_arm64_writer_flush (&cw);
+  gum_mprotect (code, gum_query_page_size (), GUM_PAGE_RX);
   gum_clear_cache (cw.base, gum_arm64_writer_offset (&cw));
   gum_arm64_writer_clear (&cw);
 
@@ -721,7 +727,7 @@ TESTCASE (conditional_branch)
   StalkerTestFunc func;
   gint r;
 
-  code = gum_alloc_n_pages (1, GUM_PAGE_RWX);
+  code = gum_alloc_n_pages (1, GUM_PAGE_RW);
   gum_arm64_writer_init (&cw, code);
 
   gum_arm64_writer_put_push_all_x_registers (&cw);
@@ -753,6 +759,7 @@ TESTCASE (conditional_branch)
   gum_arm64_writer_put_b_imm (&cw, address);
 
   gum_arm64_writer_flush (&cw);
+  gum_mprotect (code, gum_query_page_size (), GUM_PAGE_RX);
   gum_clear_cache (cw.base, gum_arm64_writer_offset (&cw));
   gum_arm64_writer_clear (&cw);
 
@@ -774,7 +781,7 @@ TESTCASE (compare_and_branch)
   StalkerTestFunc func;
   gint r;
 
-  code = gum_alloc_n_pages (1, GUM_PAGE_RWX);
+  code = gum_alloc_n_pages (1, GUM_PAGE_RW);
   gum_arm64_writer_init (&cw, code);
 
   gum_arm64_writer_put_push_all_x_registers (&cw);
@@ -806,6 +813,7 @@ TESTCASE (compare_and_branch)
   gum_arm64_writer_put_cbnz_reg_label (&cw, ARM64_REG_X0, my_nken_lbl);
 
   gum_arm64_writer_flush (&cw);
+  gum_mprotect (code, gum_query_page_size (), GUM_PAGE_RX);
   gum_clear_cache (cw.base, gum_arm64_writer_offset (&cw));
   gum_arm64_writer_clear (&cw);
 
@@ -827,7 +835,7 @@ TESTCASE (test_bit_and_branch)
   StalkerTestFunc func;
   gint r;
 
-  code = gum_alloc_n_pages (1, GUM_PAGE_RWX);
+  code = gum_alloc_n_pages (1, GUM_PAGE_RW);
   gum_arm64_writer_init (&cw, code);
 
   gum_arm64_writer_put_push_all_x_registers (&cw);
@@ -859,6 +867,7 @@ TESTCASE (test_bit_and_branch)
   gum_arm64_writer_put_tbnz_reg_imm_label (&cw, ARM64_REG_W0, 0, my_nken_lbl);
 
   gum_arm64_writer_flush (&cw);
+  gum_mprotect (code, gum_query_page_size (), GUM_PAGE_RX);
   gum_clear_cache (cw.base, gum_arm64_writer_offset (&cw));
   gum_arm64_writer_clear (&cw);
 
@@ -880,7 +889,7 @@ TESTCASE (follow_std_call)
   StalkerTestFunc func;
   gint r;
 
-  code = gum_alloc_n_pages (1, GUM_PAGE_RWX);
+  code = gum_alloc_n_pages (1, GUM_PAGE_RW);
   gum_arm64_writer_init (&cw, code);
 
   gum_arm64_writer_put_push_reg_reg (&cw, ARM64_REG_X30, ARM64_REG_X29);
@@ -913,6 +922,7 @@ TESTCASE (follow_std_call)
   gum_arm64_writer_put_ret (&cw);
 
   gum_arm64_writer_flush (&cw);
+  gum_mprotect (code, gum_query_page_size (), GUM_PAGE_RX);
   gum_clear_cache (cw.base, gum_arm64_writer_offset (&cw));
   gum_arm64_writer_clear (&cw);
 
@@ -934,7 +944,7 @@ TESTCASE (follow_return)
   StalkerTestFunc func;
   gint r;
 
-  code = gum_alloc_n_pages (1, GUM_PAGE_RWX);
+  code = gum_alloc_n_pages (1, GUM_PAGE_RW);
   gum_arm64_writer_init (&cw, code);
 
   gum_arm64_writer_put_push_reg_reg (&cw, ARM64_REG_X30, ARM64_REG_X29);
@@ -973,6 +983,7 @@ TESTCASE (follow_return)
   gum_arm64_writer_put_ret (&cw);
 
   gum_arm64_writer_flush (&cw);
+  gum_mprotect (code, gum_query_page_size (), GUM_PAGE_RX);
   gum_clear_cache (cw.base, gum_arm64_writer_offset (&cw));
   gum_arm64_writer_clear (&cw);
 
@@ -1133,7 +1144,7 @@ TESTCASE (no_register_clobber)
   ClobberFunc func;
   GumCpuContext ctx;
 
-  code = gum_alloc_n_pages (1, GUM_PAGE_RWX);
+  code = gum_alloc_n_pages (1, GUM_PAGE_RW);
   gum_arm64_writer_init (&cw, code);
 
   gum_arm64_writer_put_push_all_x_registers (&cw);
@@ -1180,6 +1191,7 @@ TESTCASE (no_register_clobber)
   gum_arm64_writer_put_ret (&cw);
 
   gum_arm64_writer_flush (&cw);
+  gum_mprotect (code, gum_query_page_size (), GUM_PAGE_RX);
   gum_clear_cache (cw.base, gum_arm64_writer_offset (&cw));
   gum_arm64_writer_clear (&cw);
 
