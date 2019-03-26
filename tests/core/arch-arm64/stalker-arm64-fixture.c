@@ -15,6 +15,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define gum_mprotect(x, y, z) snap_mprotect(__FILE__, __LINE__, __func__, x, y, z)
+
 #define TESTCASE(NAME) \
     void test_arm64_stalker_ ## NAME ( \
     TestArm64StalkerFixture * fixture, gconstpointer data)

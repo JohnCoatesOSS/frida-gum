@@ -7,6 +7,7 @@
 #include "gumtls.h"
 
 #include <pthread.h>
+#import <stdio.h>
 
 void
 _gum_tls_init (void)

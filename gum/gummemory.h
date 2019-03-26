@@ -85,6 +85,9 @@ GUM_API void gum_match_pattern_free (GumMatchPattern * pattern);
 
 GUM_API void gum_mprotect (gpointer address, gsize size,
     GumPageProtection page_prot);
+GUM_API void snap_mprotect (const char *file, int line_number,
+                            const char *function, gpointer address, gsize size,
+                           GumPageProtection page_prot);
 GUM_API gboolean gum_try_mprotect (gpointer address, gsize size,
     GumPageProtection page_prot);
 

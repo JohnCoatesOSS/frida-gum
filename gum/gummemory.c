@@ -617,6 +617,66 @@ gum_mprotect (gpointer address,
     g_abort ();
 }
 
+vm_prot_t protectionForAddress(void *address, size_t size) {
+  mach_port_t port = mach_task_self();
+  mach_vm_offset_t regionAddress = (mach_vm_offset_t)address;
+  mach_vm_size_t regionSize = size;
+  vm_region_basic_info_data_64_t info = {0, 0, 0, 0, 0, 0, 0, 0};
+  mach_msg_type_number_t infoCount = VM_REGION_BASIC_INFO_COUNT_64;
+  mach_port_t objectName = 0;
+  kern_return_t currentProtectionReadSuccessfully;
+  currentProtectionReadSuccessfully  = mach_vm_region(port, &regionAddress, &regionSize,
+                                                      VM_REGION_BASIC_INFO_64,
+                                                      (vm_region_info_t)&info,
+                                                      &infoCount,
+                                                      &objectName);
+  
+  if (currentProtectionReadSuccessfully == KERN_SUCCESS) {
+    return info.protection;
+  } else {
+    return 0;
+  }
+}
+
+char *protStr(vm_prot_t prot) {
+  static char rw[3] = "rw";
+  static char rx[3] = "rx";
+  static char huh[3] = "??";
+  
+  if (prot & VM_PROT_WRITE) {
+    return rw;
+  } else if (prot & VM_PROT_EXECUTE) {
+    return rx;
+  }
+  
+  return huh;
+}
+
+void snap_mprotect (const char *file, int line_number,
+                    const char *function, gpointer address, gsize size,
+                    GumPageProtection page_prot) {
+  
+  if (size % gum_query_page_size() != 0) {
+    printf("error: mprotect size %lx is not a multiple of a page\n", size);
+  }
+  vm_prot_t new_prot = gum_page_protection_to_mach(page_prot);
+  vm_prot_t previous_prot = protectionForAddress(address, size);
+  
+  printf("gum_mprotect(%p, %lx, %s) %s (prev) %s:%d %s\n",
+         address, size,
+         protStr(new_prot),
+         protStr(previous_prot),
+         file, line_number, function
+         );
+  if (protStr(new_prot) == protStr(previous_prot)) {
+    printf("error: set protection to the same protection!\n\n");
+    fflush(stdout);
+    return;
+  }
+  fflush(stdout);
+  gum_mprotect(address, size, page_prot);
+}
+
 guint
 gum_peek_private_memory_usage (void)
 {

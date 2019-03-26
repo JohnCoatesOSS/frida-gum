@@ -18,6 +18,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define gum_mprotect(x, y, z) snap_mprotect(__FILE__, __LINE__, __func__, x, y, z)
+
 #define GUM_CODE_SLAB_SIZE_IN_PAGES         1024
 #define GUM_EXEC_BLOCK_MIN_SIZE             1024
 
@@ -673,6 +675,7 @@ gum_stalker_infect (GumThreadId thread_id,
                     GumCpuContext * cpu_context,
                     gpointer user_data)
 {
+  printf("gum_stalker_infect/start\n");fflush(stdout);
   GumInfectContext * infect_context;
   GumStalker * self;
   GumExecCtx * ctx;
@@ -683,7 +686,7 @@ gum_stalker_infect (GumThreadId thread_id,
   self = infect_context->stalker;
   ctx = gum_stalker_create_exec_ctx (self, thread_id,
       infect_context->transformer, infect_context->sink);
-
+  printf("address we're obtaining block for: %p\n", GSIZE_TO_POINTER (cpu_context->pc));fflush(stdout);
   ctx->current_block = gum_exec_ctx_obtain_block_for (ctx,
       GSIZE_TO_POINTER (cpu_context->pc), &code_address);
   cpu_context->pc = GPOINTER_TO_SIZE (ctx->infect_thunk);
@@ -703,9 +706,11 @@ gum_stalker_infect (GumThreadId thread_id,
   gum_arm64_writer_flush (&cw);
   gum_mprotect(ctx->thunks, gum_query_page_size (), GUM_PAGE_RX);
   gum_clear_cache (cw.base, gum_arm64_writer_offset (&cw));
+  printf("infect_thunk: %p, thunks: %p\n", ctx->infect_thunk, ctx->thunks);
   gum_arm64_writer_clear (&cw);
 
   gum_event_sink_start (infect_context->sink);
+  printf("gum_stalker_infect/end\n");fflush(stdout);
 }
 
 static void
@@ -713,6 +718,7 @@ gum_stalker_disinfect (GumThreadId thread_id,
                        GumCpuContext * cpu_context,
                        gpointer user_data)
 {
+  printf("gum_stalker_disinfect/start");fflush(stdout);
   GumDisinfectContext * disinfect_context;
   GumStalker * self;
   GumExecCtx * ctx;
@@ -733,6 +739,7 @@ gum_stalker_disinfect (GumThreadId thread_id,
 
     disinfect_context->success = TRUE;
   }
+  printf("gum_stalker_disinfect/end");fflush(stdout);
 }
 
 GumProbeId
@@ -1109,11 +1116,40 @@ gum_exec_ctx_destroy_thunks (GumExecCtx * ctx)
   gum_free_pages (ctx->thunks);
 }
 
+static void
+gum_disasm (guint8 * code,
+            guint size,
+            const gchar * prefix)
+{
+  csh capstone;
+  cs_err err;
+  cs_insn * insn;
+  size_t count, i;
+  
+  err = cs_open (CS_ARCH_ARM64, CS_MODE_LITTLE_ENDIAN, &capstone);
+  g_assert_cmpint (err, == , CS_ERR_OK);
+  
+  count = cs_disasm (capstone, code, size, GPOINTER_TO_SIZE (code), 0, &insn);
+  g_assert (insn != NULL);
+  
+  for (i = 0; i != count; i++)
+  {
+    printf ("%s0x%llx\t%s %s\n",
+            prefix, insn[i].address, insn[i].mnemonic, insn[i].op_str);
+  }
+  
+  cs_free (insn, count);
+  
+  cs_close (&capstone);
+}
+
+
 static GumExecBlock *
 gum_exec_ctx_obtain_block_for (GumExecCtx * ctx,
                                gpointer real_address,
                                gpointer * code_address_ptr)
 {
+//  printf("address we're obtaining block for: %p\n", real_address);fflush(stdout);
   GumExecBlock * block;
   GumArm64Writer * cw;
   GumArm64Relocator * rl;
@@ -1132,6 +1168,7 @@ gum_exec_ctx_obtain_block_for (GumExecCtx * ctx,
           memcmp (real_address, block->real_snapshot,
             block->real_end - block->real_begin) == 0)
       {
+        printf("recycle count++ for %p\n", real_address);fflush(stdout);
         block->recycle_count++;
         gum_mprotect(block->slab->data, block->slab->size, GUM_PAGE_RX);
         return block;
@@ -1146,8 +1183,9 @@ gum_exec_ctx_obtain_block_for (GumExecCtx * ctx,
   block = gum_exec_block_new (ctx);
   *code_address_ptr = block->code_begin;
 
-  if (ctx->stalker->trust_threshold >= 0)
+  if (ctx->stalker->trust_threshold >= 0) {
     gum_metal_hash_table_insert (ctx->mappings, real_address, block);
+  }
 
   cw = &ctx->code_writer;
   rl = &ctx->relocator;
@@ -1161,6 +1199,8 @@ gum_exec_ctx_obtain_block_for (GumExecCtx * ctx,
   gc.continuation_real_address = NULL;
   gc.opened_prolog = GUM_PROLOG_NONE;
   gc.exclusive_load_offset = GUM_INSTRUCTION_OFFSET_NONE;
+  
+  printf ("\n\n***\n\nCreating block for %p:\n", real_address);fflush(stdout);
 
   iterator.exec_context = ctx;
   iterator.exec_block = block;
@@ -1171,11 +1211,24 @@ gum_exec_ctx_obtain_block_for (GumExecCtx * ctx,
   iterator.instruction.end = NULL;
   iterator.requirements = GUM_REQUIRE_NOTHING;
 
+  
   gum_arm64_writer_put_ldp_reg_reg_reg_offset (cw, ARM64_REG_X16, ARM64_REG_X17,
       ARM64_REG_SP, 16 + GUM_RED_ZONE_SIZE, GUM_INDEX_POST_ADJUST);
 
+  printf("copying %p to %p\n", real_address, cw->code); fflush(stdout);
+  guint32 *start = cw->code;
+  
   gum_stalker_transformer_transform_block (ctx->transformer, &iterator,
       (GumStalkerWriter *) cw);
+  guint32 *end = cw->code;
+  
+//  gum_disasm (start, end - start, "\t");
+  printf("copied %p, finished at %p\n", real_address, cw->code); fflush(stdout);
+  gum_disasm (real_address, end - start, "\t\t");
+  
+  static int block_index = 0;
+  block_index += 1;
+  printf("block index: %d\n", block_index); fflush(stdout);
 
   if (gc.continuation_real_address != NULL)
   {
@@ -1208,6 +1261,9 @@ gum_exec_ctx_obtain_block_for (GumExecCtx * ctx,
     gum_event_sink_process (ctx->sink, &ctx->tmp_event);
   }
 
+  if (block_index == 12) {
+    raise(SIGSTOP);
+  }
   return block;
 }
 
@@ -1232,7 +1288,10 @@ gum_stalker_iterator_next (GumStalkerIterator * self,
       gum_arm64_relocator_skip_one (rl);
     }
 
+    guint8 * begin = block->code_end;
     block->code_end = gum_arm64_writer_cur (gc->code_writer);
+    gum_disasm (begin, block->code_end - begin, "\t");
+//    gum_hexdump (begin, block->code_end - begin, "\t; ");
 
     if (gum_exec_block_is_full (block))
     {
@@ -1473,6 +1532,7 @@ gum_stalker_invoke_callout (GumCpuContext * cpu_context,
 {
   GumExecCtx * ec = entry->exec_context;
 
+  printf("gum_stalker_invoke_callout/start\n");fflush(stdout);
   cpu_context->pc = GPOINTER_TO_SIZE (entry->pc);
 
   gum_spinlock_acquire (&ec->callout_lock);
@@ -1483,6 +1543,7 @@ gum_stalker_invoke_callout (GumCpuContext * cpu_context,
   }
 
   gum_spinlock_release (&ec->callout_lock);
+  printf("gum_stalker_invoke_callout/end\n");fflush(stdout);
 }
 
 static void
@@ -2060,7 +2121,7 @@ gum_exec_block_check_address_for_exclusion (GumExecBlock * block,
 {
   GArray * exclusions = block->ctx->stalker->exclusions;
   guint i;
-
+  
   for (i = 0; i != exclusions->len; i++)
   {
     GumMemoryRange * r = &g_array_index (exclusions, GumMemoryRange, i);
@@ -2339,6 +2400,7 @@ gum_exec_block_virtualize_branch_insn (GumExecBlock * block,
 
     if ((block->ctx->sink_mask & GUM_CALL) != 0)
     {
+      printf("gum_exec_block_write_call_event_code\n");fflush(stdout);
       gum_exec_block_write_call_event_code (block, &target, gc,
           GUM_CODE_INTERRUPTIBLE);
     }
@@ -3037,6 +3099,7 @@ gum_exec_block_invoke_call_probes_for_target (GumExecBlock * block,
                                               gpointer target_address,
                                               GumCpuContext * cpu_context)
 {
+  printf("gum_exec_block_invoke_call_probes_for_target/start\n");fflush(stdout);
   GumStalker * stalker = block->ctx->stalker;
   GArray * probes;
 
@@ -3065,6 +3128,7 @@ gum_exec_block_invoke_call_probes_for_target (GumExecBlock * block,
   }
 
   gum_spinlock_release (&stalker->probe_lock);
+  printf("gum_exec_block_invoke_call_probes_for_target/end\n");fflush(stdout);
 }
 
 static void

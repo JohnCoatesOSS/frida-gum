@@ -375,6 +375,7 @@ gum_process_modify_thread (GumThreadId thread_id,
           state_is_valid = gum_darwin_is_unified_thread_state_valid (&state);
           if (!state_is_valid)
           {
+            printf("!state_is_valid\n");fflush(stdout);
             thread_resume (thread);
             fail_count++;
             if (fail_count < GUM_MAX_THREAD_POLL)

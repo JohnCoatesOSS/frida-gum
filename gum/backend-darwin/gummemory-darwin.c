@@ -428,6 +428,7 @@ void
 gum_clear_cache (gpointer address,
                  gsize size)
 {
+  printf("gum_clear_cache(%p, %lx)\n", address, size);fflush(stdout);
   sys_icache_invalidate (address, size);
   sys_dcache_flush (address, size);
 }
